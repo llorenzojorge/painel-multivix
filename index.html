@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organização de Rotinas – Equipe de TI</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    html, body { height: 100%; margin: 0; }
+
+    /* Scrollbar */
+    .kanban-col::-webkit-scrollbar { width: 4px; }
+    .kanban-col::-webkit-scrollbar-track { background: transparent; }
+    .kanban-col::-webkit-scrollbar-thumb { background: rgba(120,120,120,0.3); border-radius: 4px; }
+
+    /* Transitions */
+    .card-enter { animation: cardIn 0.3s ease-out; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .theme-transition { transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease; }
+
+    /* Light theme */
+    .light { --bg: #f0f2f5; --surface: #ffffff; --surface2: #f7f8fa; --text: #1a1d23; --text2: #5f6577; --border: #e2e5eb; --accent: #3b6df0; --accent-hover: #2d5ad4; --green: #22a861; --green-bg: #e8f7ef; --red: #e5453e; --red-bg: #fdecea; --yellow: #e6a818; --yellow-bg: #fef8e7; --blue-bg: #eef3fe; --tag-b1: #6c5ce7; --tag-b1-bg: #f0eefe; --tag-b2: #e17055; --tag-b2-bg: #fdf0ec; --tag-none: #636e83; --tag-none-bg: #f0f1f4; --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --shadow-hover: 0 4px 12px rgba(0,0,0,0.08); }
+    /* Dark theme */
+    .dark { --bg: #0f1117; --surface: #1a1d27; --surface2: #22252f; --text: #e8eaf0; --text2: #8b8fa3; --border: #2d3040; --accent: #5b8af5; --accent-hover: #7aa2ff; --green: #34d87a; --green-bg: rgba(52,216,122,0.12); --red: #f06560; --red-bg: rgba(240,101,96,0.12); --yellow: #f0c040; --yellow-bg: rgba(240,192,64,0.1); --blue-bg: rgba(91,138,245,0.1); --tag-b1: #a29bfe; --tag-b1-bg: rgba(162,155,254,0.15); --tag-b2: #fab1a0; --tag-b2-bg: rgba(250,177,160,0.12); --tag-none: #8b8fa3; --tag-none-bg: rgba(139,143,163,0.15); --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-hover: 0 4px 12px rgba(0,0,0,0.4); }
+
+    body { background: var(--bg); color: var(--text); }
+
+    /* Read mode: hide action buttons unless hovered */
+    .read-mode .card-actions { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .read-mode .task-card:hover .card-actions { opacity: 1; pointer-events: auto; }
+    .read-mode .complete-btn-wrap { opacity: 0; transition: opacity 0.2s; }
+    .read-mode .task-card:hover .complete-btn-wrap { opacity: 1; }
+
+    /* Modal backdrop */
+    .modal-backdrop { background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); }
+    .dark .modal-backdrop { background: rgba(0,0,0,0.65); }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {}
+      }
+    }
+  </script>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full overflow-hidden">
+  <div id="app" class="h-full flex flex-col theme-transition" style="background:var(--bg);">
+   <!-- HEADER -->
+   <header id="header" class="theme-transition flex-shrink-0" style="background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--shadow);">
+    <div class="flex flex-col items-center justify-center px-2 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 lg:py-5">
+     <div class="text-center w-full">
+      <h1 id="boardTitle" class="text-sm sm:text-base md:text-lg lg:text-2xl font-bold" style="color:var(--text);">Organização de Rotinas – Equipe de TI</h1>
+      <div class="flex items-center justify-center gap-1 sm:gap-2 mt-0.5">
+       <i data-lucide="clock" style="width:12px;height:12px;color:var(--text2);"></i> <span id="datetime" class="mono text-xs sm:text-sm" style="color:var(--text2);"></span>
+      </div>
+     </div>
+    </div>
+    <div class="flex items-center justify-center gap-2 sm:gap-3 flex-shrink-0 pb-2 sm:pb-3">
+     <!-- Mode Toggle --> <button id="modeToggle" onclick="toggleMode()" class="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium theme-transition" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" title="Alternar modo"> <i data-lucide="pencil" id="modeIcon" style="width:14px;height:14px;"></i> <span id="modeLabel" class="hidden sm:inline">Edição</span> </button> <!-- Theme Toggle --> <button id="themeToggle" onclick="toggleTheme()" class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg theme-transition" style="background:var(--surface2);border:1px solid var(--border);" title="Alternar tema"> <i data-lucide="sun" id="themeIcon" style="width:16px;height:16px;color:var(--text2);"></i> </button>
+    </div>
+   </header><!-- BOARD -->
+   <main id="board" class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-3 md:p-4 lg:p-5">
+    <div class="flex gap-2 sm:gap-3 md:gap-4 h-full min-w-0 justify-center" style="width:100%;max-width:100%;">
+     <!-- Column: A Fazer -->
+     <section class="flex flex-col w-64 sm:w-72 md:w-80 lg:w-96 flex-shrink-0 rounded-lg sm:rounded-xl theme-transition" style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);">
+      <div class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b" style="border-color:var(--border);">
+       <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0" style="background:var(--accent);"></div>
+        <h2 id="colTodoTitle" class="text-sm sm:text-base font-semibold truncate" style="color:var(--text);">A Fazer</h2><span id="todoCount" class="text-xs sm:text-sm px-2 sm:px-2.5 py-1 rounded-full font-medium flex-shrink-0" style="background:var(--blue-bg);color:var(--accent);">0</span>
+       </div><button onclick="openAddModal('todo')" class="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg hover:scale-105 transition-transform flex-shrink-0" style="background:var(--blue-bg);" title="Adicionar tarefa"> <i data-lucide="plus" style="width:13px;height:13px;color:var(--accent);"></i> </button>
+      </div>
+      <div id="todoCards" class="kanban-col flex-1 overflow-y-auto p-2 sm:p-3 flex flex-col gap-2">
+       <div id="todoEmpty" class="flex flex-col items-center justify-center py-6 sm:py-8 text-center" style="color:var(--text2);">
+        <i data-lucide="clipboard-list" style="width:32px;height:32px;opacity:0.4;"></i>
+        <p class="text-xs sm:text-sm mt-2 sm:mt-3 opacity-60">Nenhuma tarefa pendente</p>
+       </div>
+      </div>
+     </section><!-- Column: Concluído -->
+     <section class="flex flex-col w-64 sm:w-72 md:w-80 lg:w-96 flex-shrink-0 rounded-lg sm:rounded-xl theme-transition" style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);">
+      <div class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b" style="border-color:var(--border);">
+       <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0" style="background:var(--green);"></div>
+        <h2 id="colDoneTitle" class="text-sm sm:text-base font-semibold truncate" style="color:var(--text);">Concluído</h2><span id="doneCount" class="text-xs sm:text-sm px-2 sm:px-2.5 py-1 rounded-full font-medium flex-shrink-0" style="background:var(--green-bg);color:var(--green);">0</span>
+       </div><button onclick="openAddModal('done')" class="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg hover:scale-105 transition-transform flex-shrink-0" style="background:var(--green-bg);" title="Adicionar concluído"> <i data-lucide="plus" style="width:13px;height:13px;color:var(--green);"></i> </button>
+      </div>
+      <div id="doneCards" class="kanban-col flex-1 overflow-y-auto p-2 sm:p-3 flex flex-col gap-2">
+       <div id="doneEmpty" class="flex flex-col items-center justify-center py-6 sm:py-8 text-center" style="color:var(--text2);">
+        <i data-lucide="check-circle" style="width:32px;height:32px;opacity:0.4;"></i>
+        <p class="text-xs sm:text-sm mt-2 sm:mt-3 opacity-60">Nenhuma tarefa concluída</p>
+       </div>
+      </div>
+     </section><!-- Column: Avisos Semanais -->
+     <section class="flex flex-col w-64 sm:w-72 md:w-80 lg:w-96 flex-shrink-0 rounded-lg sm:rounded-xl theme-transition" style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);">
+      <div class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b" style="border-color:var(--border);">
+       <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0" style="background:var(--yellow);"></div>
+        <h2 id="colNoticesTitle" class="text-sm sm:text-base font-semibold truncate" style="color:var(--text);">Avisos Semanais</h2><span id="noticeCount" class="text-xs sm:text-sm px-2 sm:px-2.5 py-1 rounded-full font-medium flex-shrink-0" style="background:var(--yellow-bg);color:var(--yellow);">0</span>
+       </div><button onclick="openAddModal('notice')" class="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg hover:scale-105 transition-transform flex-shrink-0" style="background:var(--yellow-bg);" title="Adicionar aviso"> <i data-lucide="plus" style="width:13px;height:13px;color:var(--yellow);"></i> </button>
+      </div>
+      <div id="noticeCards" class="kanban-col flex-1 overflow-y-auto p-2 sm:p-3 flex flex-col gap-2">
+       <div id="noticeEmpty" class="flex flex-col items-center justify-center py-6 sm:py-8 text-center" style="color:var(--text2);">
+        <i data-lucide="megaphone" style="width:32px;height:32px;opacity:0.4;"></i>
+        <p class="text-xs sm:text-sm mt-2 sm:mt-3 opacity-60">Nenhum aviso esta semana</p>
+       </div>
+      </div>
+     </section>
+    </div>
+   </main><!-- ADD/EDIT MODAL -->
+   <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+    <div class="theme-transition rounded-2xl w-full max-w-md mx-4 fade-in" style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-hover);">
+     <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:var(--border);">
+      <h3 id="modalTitle" class="text-base font-semibold" style="color:var(--text);">Nova Tarefa</h3><button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-lg" style="color:var(--text2);background:var(--surface2);"> <i data-lucide="x" style="width:18px;height:18px;"></i> </button>
+     </div>
+     <form id="modalForm" onsubmit="handleFormSubmit(event)" class="p-5 flex flex-col gap-4">
+      <input type="hidden" id="formId" value=""> <input type="hidden" id="formColumn" value="">
+      <div>
+       <label for="formTitle" class="block text-sm font-medium mb-2" style="color:var(--text2);">Título *</label> <input id="formTitle" type="text" required maxlength="120" class="w-full px-3 py-2.5 rounded-lg text-base outline-none theme-transition" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);" placeholder="Ex: Atualizar servidor do lab">
+      </div>
+      <div>
+       <label for="formDesc" class="block text-sm font-medium mb-2" style="color:var(--text2);">Descrição</label> <textarea id="formDesc" rows="3" maxlength="500" class="w-full px-3 py-2.5 rounded-lg text-base outline-none resize-none theme-transition" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);" placeholder="Detalhes opcionais..."></textarea>
+      </div>
+      <div>
+       <label for="formBlock" class="block text-sm font-medium mb-2" style="color:var(--text2);">Identificação / Bloco (opcional)</label> <select id="formBlock" class="w-full px-3 py-2.5 rounded-lg text-base outline-none theme-transition" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);"> <option value="">Sem bloco</option> <option value="bloco1">Bloco 1</option> <option value="bloco2">Bloco 2</option> </select>
+      </div>
+      <div class="flex gap-2 pt-2">
+       <button type="button" onclick="closeModal()" class="flex-1 px-4 py-3 rounded-lg text-base font-medium theme-transition" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);">Cancelar</button> <button type="submit" id="formSubmitBtn" class="flex-1 px-4 py-3 rounded-lg text-base font-medium text-white theme-transition" style="background:var(--accent);"> <span id="formSubmitText">Adicionar</span> </button>
+      </div>
+     </form>
+    </div>
+   </div><!-- DELETE CONFIRM MODAL -->
+   <div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+    <div class="theme-transition rounded-2xl w-full max-w-sm mx-4 fade-in" style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-hover);">
+     <div class="p-5 text-center">
+      <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style="background:var(--red-bg);">
+       <i data-lucide="trash-2" style="width:20px;height:20px;color:var(--red);"></i>
+      </div>
+      <h3 class="text-base font-semibold mb-2" style="color:var(--text);">Excluir item?</h3>
+      <p class="text-sm" style="color:var(--text2);">Essa ação não pode ser desfeita.</p>
+     </div>
+     <div class="flex gap-2 px-5 pb-5">
+      <button onclick="closeDeleteModal()" class="flex-1 px-4 py-3 rounded-lg text-base font-medium theme-transition" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);">Cancelar</button> <button id="confirmDeleteBtn" onclick="confirmDelete()" class="flex-1 px-4 py-3 rounded-lg text-base font-medium text-white theme-transition" style="background:var(--red);">Excluir</button>
+     </div>
+    </div>
+   </div><!-- TOAST -->
+   <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 opacity-0 translate-y-4 pointer-events-none" style="background:var(--text);color:var(--bg);box-shadow:var(--shadow-hover);"></div>
+   <script>
+  // ========== STATE ==========
+  let allData = [];
+  let currentTheme = localStorage.getItem('theme') || 'light';
+  let editMode = localStorage.getItem('editMode') !== 'false'; // true = edição, false = leitura
+  let pendingDeleteRecord = null;
+  let editingRecord = null;
+  let modalColumnTarget = 'todo';
+
+  const defaultConfig = {
+    board_title: 'Organização de Rotinas – Equipe de TI',
+    col_todo: 'A Fazer',
+    col_done: 'Concluído',
+    col_notices: 'Avisos Semanais',
+    background_color: '#f0f2f5',
+    surface_color: '#ffffff',
+    text_color: '#1a1d23',
+    accent_color: '#3b6df0',
+    secondary_color: '#5f6577',
+    font_family: 'DM Sans',
+    font_size: 19
+  };
+
+  // ========== ELEMENT SDK ==========
+  window.elementSdk.init({
+    defaultConfig,
+    onConfigChange: async (config) => {
+      const c = { ...defaultConfig, ...config };
+      document.getElementById('boardTitle').textContent = c.board_title;
+      document.getElementById('colTodoTitle').textContent = c.col_todo;
+      document.getElementById('colDoneTitle').textContent = c.col_done;
+      document.getElementById('colNoticesTitle').textContent = c.col_notices;
+
+      const fontStack = `${c.font_family}, DM Sans, sans-serif`;
+      document.body.style.fontFamily = fontStack;
+
+      const base = c.font_size || 18;
+      document.getElementById('boardTitle').style.fontSize = `${base * 1.2}px`;
+      document.querySelectorAll('#board h2').forEach(h => h.style.fontSize = `${base}px`);
+
+      renderAll();
+    },
+    mapToCapabilities: (config) => {
+      const c = { ...defaultConfig, ...config };
+      return {
+        recolorables: [
+          { get: () => c.background_color, set: (v) => { c.background_color = v; window.elementSdk.setConfig({ background_color: v }); } },
+          { get: () => c.surface_color, set: (v) => { c.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); } },
+          { get: () => c.text_color, set: (v) => { c.text_color = v; window.elementSdk.setConfig({ text_color: v }); } },
+          { get: () => c.accent_color, set: (v) => { c.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); } },
+          { get: () => c.secondary_color, set: (v) => { c.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); } }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => c.font_family || defaultConfig.font_family,
+          set: (v) => { c.font_family = v; window.elementSdk.setConfig({ font_family: v }); }
+        },
+        fontSizeable: {
+          get: () => c.font_size || defaultConfig.font_size,
+          set: (v) => { c.font_size = v; window.elementSdk.setConfig({ font_size: v }); }
+        }
+      };
+    },
+    mapToEditPanelValues: (config) => {
+      const c = { ...defaultConfig, ...config };
+      return new Map([
+        ['board_title', c.board_title],
+        ['col_todo', c.col_todo],
+        ['col_done', c.col_done],
+        ['col_notices', c.col_notices]
+      ]);
+    }
+  });
+
+  // ========== DATA SDK ==========
+  const dataHandler = {
+    onDataChanged(data) {
+      allData = data;
+      renderAll();
+    }
+  };
+  (async () => {
+    const res = await window.dataSdk.init(dataHandler);
+    if (!res.isOk) console.error('Data SDK init failed');
+  })();
+
+  // ========== CLOCK ==========
+  function updateClock() {
+    const now = new Date();
+    const brt = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const d = days[brt.getDay()];
+    const dd = String(brt.getDate()).padStart(2, '0');
+    const mm = months[brt.getMonth()];
+    const hh = String(brt.getHours()).padStart(2, '0');
+    const mi = String(brt.getMinutes()).padStart(2, '0');
+    const ss = String(brt.getSeconds()).padStart(2, '0');
+    document.getElementById('datetime').textContent = `${d}, ${dd} ${mm} · ${hh}:${mi}:${ss} BRT`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ========== THEME ==========
+  function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', currentTheme);
+    document.documentElement.className = currentTheme + ' h-full';
+    const icon = document.getElementById('themeIcon');
+    icon.setAttribute('data-lucide', currentTheme === 'light' ? 'sun' : 'moon');
+    lucide.createIcons();
+  }
+  document.documentElement.className = currentTheme + ' h-full';
+
+  // ========== MODE ==========
+  function toggleMode() {
+    editMode = !editMode;
+    localStorage.setItem('editMode', editMode);
+    const label = document.getElementById('modeLabel');
+    const icon = document.getElementById('modeIcon');
+    if (editMode) {
+      label.textContent = 'Edição';
+      icon.setAttribute('data-lucide', 'pencil');
+      document.getElementById('board').classList.remove('read-mode');
+    } else {
+      label.textContent = 'Leitura';
+      icon.setAttribute('data-lucide', 'eye');
+      document.getElementById('board').classList.add('read-mode');
+    }
+    lucide.createIcons();
+    renderAll();
+  }
+
+  // ========== BLOCK TAG ==========
+  function blockTag(blockId) {
+    const map = {
+      bloco1: { label: 'Bloco 1', color: 'var(--tag-b1)', bg: 'var(--tag-b1-bg)' },
+      bloco2: { label: 'Bloco 2', color: 'var(--tag-b2)', bg: 'var(--tag-b2-bg)' }
+    };
+    if (!blockId || !map[blockId]) return '';
+    const t = map[blockId];
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold" style="background:${t.bg};color:${t.color};">
+      <i data-lucide="building" style="width:11px;height:11px;"></i>${t.label}
+    </span>`;
+  }
+
+  // ========== RENDER ==========
+  function renderAll() {
+    const todos = allData.filter(d => d.column === 'todo');
+    const dones = allData.filter(d => d.column === 'done');
+    const notices = allData.filter(d => d.column === 'notice');
+
+    document.getElementById('todoCount').textContent = todos.length;
+    document.getElementById('doneCount').textContent = dones.length;
+    document.getElementById('noticeCount').textContent = notices.length;
+
+    renderColumn('todoCards', 'todoEmpty', todos, 'todo');
+    renderColumn('doneCards', 'doneEmpty', dones, 'done');
+    renderColumn('noticeCards', 'noticeEmpty', notices, 'notice');
+
+    lucide.createIcons();
+  }
+
+  function renderColumn(containerId, emptyId, items, colType) {
+    const container = document.getElementById(containerId);
+    const emptyEl = document.getElementById(emptyId);
+    const existingMap = new Map();
+    container.querySelectorAll('.task-card').forEach(el => {
+      existingMap.set(el.dataset.id, el);
+    });
+
+    const currentIds = new Set(items.map(i => i.__backendId));
+
+    // Remove deleted
+    existingMap.forEach((el, id) => {
+      if (!currentIds.has(id)) el.remove();
+    });
+
+    // Update or create
+    items.forEach((item, idx) => {
+      const existing = existingMap.get(item.__backendId);
+      if (existing) {
+        updateCard(existing, item, colType);
+      } else {
+        const card = createCard(item, colType);
+        container.appendChild(card);
+      }
+    });
+
+    // Toggle empty
+    if (items.length === 0) {
+      emptyEl.style.display = 'flex';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+  }
+
+  function createCard(item, colType) {
+    const div = document.createElement('div');
+    div.className = 'task-card card-enter relative rounded-xl p-3.5 theme-transition cursor-default';
+    div.dataset.id = item.__backendId;
+    div.style.cssText = `background:var(--surface2);border:1px solid var(--border);`;
+    div.innerHTML = cardInner(item, colType);
+    return div;
+  }
+
+  function updateCard(el, item, colType) {
+    el.innerHTML = cardInner(item, colType);
+  }
+
+  function cardInner(item, colType) {
+    const tag = blockTag(item.block_id);
+    const desc = item.description ? `<p class="text-sm sm:text-base mt-2 sm:mt-2.5 leading-relaxed" style="color:var(--text2);">${escHtml(item.description)}</p>` : '';
+    const time = item.created_at ? formatDate(item.created_at) : '';
+    const completedTime = item.completed_at ? formatDate(item.completed_at) : '';
+
+    let completeBtn = '';
+    if (colType === 'todo') {
+      completeBtn = `<div class="complete-btn-wrap mt-3">
+        <button onclick="completeTask('${item.__backendId}')" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-transform hover:scale-[1.02]" style="background:var(--green);">
+          <i data-lucide="check" style="width:14px;height:14px;"></i>Concluir
+        </button>
+      </div>`;
+    }
+
+    let moveToTodoBtn = '';
+    let completeNoticeBtn = '';
+    if (colType === 'notice') {
+      moveToTodoBtn = `<button onclick="moveToTodo('${item.__backendId}')" title="Mover para A Fazer" class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style="color:var(--accent);background:var(--blue-bg);">
+        <i data-lucide="arrow-left-circle" style="width:16px;height:16px;"></i>
+      </button>`;
+      completeNoticeBtn = `<button onclick="completeNotice('${item.__backendId}')" title="Concluir aviso" class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style="color:var(--green);background:var(--green-bg);">
+        <i data-lucide="check-circle-2" style="width:16px;height:16px;"></i>
+      </button>`;
+    }
+
+    let metaLine = '';
+    if (colType === 'done' && completedTime) {
+      metaLine = `<div class="flex items-center gap-2 mt-3" style="color:var(--green);">
+        <i data-lucide="check-circle-2" style="width:14px;height:14px;"></i>
+        <span class="text-sm sm:text-base font-medium">${completedTime}</span>
+      </div>`;
+    } else if (time) {
+      metaLine = `<div class="flex items-center gap-2 mt-3" style="color:var(--text2);opacity:0.6;">
+        <i data-lucide="clock" style="width:14px;height:14px;"></i>
+        <span class="text-sm sm:text-base">${time}</span>
+      </div>`;
+    }
+
+    return `
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0 flex-1">
+          ${tag ? `<div class="mb-1.5">${tag}</div>` : ''}
+          <h4 class="text-base font-semibold leading-snug" style="color:var(--text);">${escHtml(item.title)}</h4>
+          ${desc}
+          ${metaLine}
+        </div>
+        <div class="card-actions flex items-center gap-1.5 flex-shrink-0">
+          ${moveToTodoBtn}
+          ${completeNoticeBtn}
+          <button onclick="openEditModal('${item.__backendId}')" title="Editar" class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style="color:var(--text2);background:var(--surface);">
+            <i data-lucide="pencil" style="width:15px;height:15px;"></i>
+          </button>
+          <button onclick="openDeleteModal('${item.__backendId}')" title="Excluir" class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style="color:var(--red);background:var(--red-bg);">
+            <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
+          </button>
+        </div>
+      </div>
+      ${completeBtn}
+    `;
+  }
+
+  // ========== HELPERS ==========
+  function escHtml(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.opacity = '1';
+    t.style.transform = 'translate(-50%, 0)';
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translate(-50%, 1rem)'; }, 2200);
+  }
+
+  // ========== MODAL ==========
+  function openAddModal(col) {
+    editingRecord = null;
+    modalColumnTarget = col;
+    document.getElementById('formId').value = '';
+    document.getElementById('formColumn').value = col;
+    document.getElementById('formTitle').value = '';
+    document.getElementById('formDesc').value = '';
+    document.getElementById('formBlock').value = '';
+    const titles = { todo: 'Nova Tarefa', done: 'Nova Conclusão', notice: 'Novo Aviso' };
+    document.getElementById('modalTitle').textContent = titles[col] || 'Novo Item';
+    document.getElementById('formSubmitText').textContent = 'Adicionar';
+    showModal('modal');
+  }
+
+  function openEditModal(backendId) {
+    const record = allData.find(d => d.__backendId === backendId);
+    if (!record) return;
+    editingRecord = record;
+    document.getElementById('formId').value = backendId;
+    document.getElementById('formColumn').value = record.column;
+    document.getElementById('formTitle').value = record.title || '';
+    document.getElementById('formDesc').value = record.description || '';
+    document.getElementById('formBlock').value = record.block_id || '';
+    document.getElementById('modalTitle').textContent = 'Editar Item';
+    document.getElementById('formSubmitText').textContent = 'Salvar';
+    showModal('modal');
+  }
+
+  function showModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  }
+
+  function closeModal() {
+    const m = document.getElementById('modal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+    editingRecord = null;
+  }
+
+  // ========== DELETE ==========
+  function openDeleteModal(backendId) {
+    pendingDeleteRecord = allData.find(d => d.__backendId === backendId);
+    if (!pendingDeleteRecord) return;
+    showModal('deleteModal');
+  }
+
+  function closeDeleteModal() {
+    const m = document.getElementById('deleteModal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+    pendingDeleteRecord = null;
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteRecord) return;
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    btn.textContent = 'Excluindo...';
+    const res = await window.dataSdk.delete(pendingDeleteRecord);
+    btn.disabled = false;
+    btn.textContent = 'Excluir';
+    closeDeleteModal();
+    if (res.isOk) {
+      showToast('Item excluído');
+    } else {
+      showToast('Erro ao excluir');
+    }
+  }
+
+  // ========== FORM SUBMIT ==========
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+    const title = document.getElementById('formTitle').value.trim();
+    if (!title) return;
+    const desc = document.getElementById('formDesc').value.trim();
+    const block = document.getElementById('formBlock').value;
+    const col = document.getElementById('formColumn').value;
+    const btn = document.getElementById('formSubmitBtn');
+    btn.disabled = true;
+    document.getElementById('formSubmitText').textContent = 'Salvando...';
+
+    if (editingRecord) {
+      const updated = { ...editingRecord, title, description: desc, block_id: block };
+      const res = await window.dataSdk.update(updated);
+      btn.disabled = false;
+      document.getElementById('formSubmitText').textContent = 'Salvar';
+      closeModal();
+      if (res.isOk) showToast('Item atualizado');
+      else showToast('Erro ao atualizar');
+    } else {
+      if (allData.length >= 999) {
+        btn.disabled = false;
+        document.getElementById('formSubmitText').textContent = 'Adicionar';
+        showToast('Limite de 999 itens atingido!');
+        return;
+      }
+      const newItem = {
+        title,
+        description: desc,
+        column: col,
+        block_id: block,
+        created_at: new Date().toISOString(),
+        completed_at: ''
+      };
+      const res = await window.dataSdk.create(newItem);
+      btn.disabled = false;
+      document.getElementById('formSubmitText').textContent = 'Adicionar';
+      closeModal();
+      if (res.isOk) showToast('Item adicionado');
+      else showToast('Erro ao adicionar');
+    }
+  }
+
+  // ========== COMPLETE TASK ==========
+  async function completeTask(backendId) {
+    const record = allData.find(d => d.__backendId === backendId);
+    if (!record) return;
+    const updated = { ...record, column: 'done', completed_at: new Date().toISOString() };
+    const res = await window.dataSdk.update(updated);
+    if (res.isOk) showToast('Tarefa concluída! ✓');
+    else showToast('Erro ao concluir');
+  }
+
+  // ========== MOVE NOTICE TO TODO ==========
+  async function moveToTodo(backendId) {
+    const record = allData.find(d => d.__backendId === backendId);
+    if (!record) return;
+    const updated = { ...record, column: 'todo' };
+    const res = await window.dataSdk.update(updated);
+    if (res.isOk) showToast('Movido para A Fazer');
+    else showToast('Erro ao mover');
+  }
+
+  // ========== COMPLETE NOTICE ==========
+  async function completeNotice(backendId) {
+    const record = allData.find(d => d.__backendId === backendId);
+    if (!record) return;
+    const updated = { ...record, column: 'done', completed_at: new Date().toISOString() };
+    const res = await window.dataSdk.update(updated);
+    if (res.isOk) showToast('Aviso concluído! ✓');
+    else showToast('Erro ao concluir');
+  }
+
+  // Initial icons
+  lucide.createIcons();
+</script>
+  </div>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9df0086076d9ca6e',t:'MTc3Mzk2MDU5MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
